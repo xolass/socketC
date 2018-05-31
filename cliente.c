@@ -9,34 +9,48 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
+typedef enum { false, true } bool;
+
 int main(int argc, char const *argv[]) {
 	int porta, connector;
 	ssize_t ler_bytes, escrever_bytes;  
 	int client_socket;
 	struct sockaddr_in serv_addr;
-	char str[4096];
+	char arqName[200];
+	char pacote[4096];
 
-	if(argc < 3){ //Checa se na execução do programa vc colocou ./cliente <ip> <porta>
+
+	//Checa se na execução do programa vc colocou ./cliente <ip> <porta>
+	if(argc < 3) { 
 		printf("Uso correto: endereco IP - porta\n");
 		exit(1);
 	}
 
-	client_socket = socket(AF_INET, SOCK_STREAM, 0); //Cria uma conexão socket no client_socket
-    //AF_INET = ipv4, SOCK_STREAM = TCP(SOCK_DGRAM = UDP), 0 padrão
+	//Cria uma conexão socket no client_socket
+	client_socket = socket(AF_INET, SOCK_STREAM, 0); 
 
-	if(client_socket <= 0){ //A conexão é vista como um número inteiro, 0 ou negativo, conexão invalida
+	if(client_socket <= 0){
 		printf("Erro no socket: %s\n", strerror(errno));
 		exit(1);
 	}
 
-	bzero(&serv_addr, sizeof(serv_addr)); //da memset no valor 0 em todo serv_addr
-	porta = atoi(argv[2]);//Armazena na variavel porta o 2º argumento colocado na execução do programa atoi string to integer
-	serv_addr.sin_family = AF_INET; //Termo que guarda o tipo de conexão (tcp,udp)
-	serv_addr.sin_port = htons(porta); //Guarda a porta a se checar
+	//da memset no valor 0 em todo serv_addr
+	bzero(&serv_addr, sizeof(serv_addr)); 
+	
+	//Armazena na variavel porta o 2º argumento colocado na execução do programa atoi string to integer
+	porta = atoi(argv[2]);
 
-	connector = connect(client_socket, (const struct sockaddr*) &serv_addr, sizeof(serv_addr));
+	//Termo que guarda o tipo de conexão (tcp,udp)
+	serv_addr.sin_family = AF_INET; 
+
+	//Guarda a porta a se checar
+	serv_addr.sin_port = htons(porta); 
+
+
+
     //Recebe o socket, a struct com as informações do server e o tamanho da struct com as informações do server
     //Essa função conecta cliente ao servidor e retorna negativo se a conexão falhou
+	connector = connect(client_socket, (const struct sockaddr*) &serv_addr, sizeof(serv_addr));
     if(connector < 0){
 		fprintf(stderr, "%s", "Falha na conecao\n");
 		exit(1);
@@ -44,15 +58,41 @@ int main(int argc, char const *argv[]) {
 		printf("Conectado com: %s\n", argv[1]);
 	}
 
-	printf("Mensagem: ");
-	fgets(str, sizeof(str), stdin); //lê mensagem do terminal e armazena em str
-	escrever_bytes = write(client_socket, str, sizeof(str)); //envia pelo client_socket o str
-	if(escrever_bytes == 0){    //se vc n enviar nada
+
+
+//***************************************************************
+//			           REQUISIÇÃO DE ARQUIVO
+//***************************************************************
+
+	printf("Qual arquivo pedir: ");
+
+	fgets(arqName, sizeof(arqName), stdin); //lê mensagem do terminal e armazena em arqName
+	
+	escrever_bytes = write(client_socket, arqName, sizeof(arqName)); //envia pelo client_socket o arqName
+	if(escrever_bytes == 0) {    //se vc n enviar nada
 		printf("Erro no write: %s\n",strerror(errno));
 		printf("Nada escrito.\n");
 		exit(1);
 	}
 
+//***************************************************************
+//			         FIM REQUISIÇÃO DE ARQUIVO
+//***************************************************************
+	FILE *file;
+	char pacote[4099];
+	int ack[2];
+	ssize_t ler;
+
+//***************************************************************
+//			           RECEBIMENTO DO ARQUIVO
+//***************************************************************
+	file = fopen(arqName,"wb");
+
+	ler = read(client_socket,pacote,sizeof(pacote));
+	ack[0] = 1;
+	// ack[1] = pacote[];
+	write(client_socket,ack,sizeof(ack));
+	
 	close(client_socket); //Fecha a conexão socket
 
 	return 0;

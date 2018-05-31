@@ -13,11 +13,12 @@ int main(int argc, char const *argv[]) {
 
 	int server_socket, binder, listener, porta, sock; 
 	struct sockaddr_in serv_addr, cli_addr;
-	ssize_t ler_bytes, escrever_bytes;
 	socklen_t clilen;
-	char str[4096];
 
 
+//***************************************************************
+//					  ABERTURA DE CONEXÃO
+//***************************************************************
 	if(argc < 3){
 		printf("Uso correto: endereco IP - porta\n");
 		exit(1);
@@ -60,19 +61,61 @@ int main(int argc, char const *argv[]) {
 
 	sock = accept(server_socket, (struct sockaddr*) &cli_addr, &clilen);
 
-	if(sock <= 0){
+	if(sock <= 0)
 		printf("Erro no accept: %s\n", strerror(errno));
-	}else{
+	else
 		printf("Conexao recebida de %s\n", inet_ntoa(cli_addr.sin_addr));
-	}
 
+//***************************************************************
+//					  FIM ABERTURA DE CONEXÃO
+//***************************************************************
+	FILE *file;
+	int nPacote = 0;
+	char str[4096];
+	int pacote[4099];
+	ssize_t ler_bytes;
+	ssize_t escrever;
+
+//***************************************************************
+//					   REQUISIÇÃO DE ARQUIVO
+//***************************************************************
 	ler_bytes = read(sock, str, sizeof(str));
 	if(ler_bytes <= 0){
 		printf("Erro no read: %s\n", strerror(errno));
 		exit(1);
 	}
 
-	printf("Cliente: %s", str);
+	//Agora, str tem o nome do arquivo
+	file = fopen(str,"rb");
+	if(!file) {
+		char msg[25] = "Arquivo nao existe\n"; 
+		write(sock,msg,sizeof(msg));
+		exit(1);
+	}
+	
+	
+	memset(pacote,0,sizeof pacote);
+	while(pacote[4098] == 0) { //LOOP DE ESCREVER E ENVIAR PACOTES
+		fread(pacote,4095*32,1,file);
+		pacote[4096] = 1; //Campo de verificação 1 (checksum)
+		pacote[4097] = 1; //Campo de verificação 2 (nº de sequencia)
+		pacote[4098] = 0; //Campo de verificação 3 (temporizador)
+
+		while(1) {
+			escrever = write(sock,pacote,sizeof(pacote));
+
+			if(escrever <= 0) 
+				printf("Erro ao escrever, tentando novamente\n");
+			else {
+				nPacote++;
+				break;
+			}
+			
+		}
+
+	}
+
+	fclose(file);
 	
 	close(sock);
 	close(server_socket);

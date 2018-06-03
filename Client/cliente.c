@@ -88,10 +88,17 @@ int main(int argc, char const *argv[]) {
 	
 	file = fopen(arqName,"wb");
 	
-	ler = read(client_socket,pacote,sizeof(pacote));
-	ack[0] = 1;
-	// ack[1] = pacote[];
-	write(client_socket,ack,sizeof(ack));
+	while(1) {
+		int servlen = sizeof(serv_addr);
+		ler = recvfrom(client_socket,pacote,sizeof(pacote),0,(struct sockaddr*) &serv_addr,&servlen);
+		if(ler<=0) {
+			break;
+		}
+
+		// ack[0] = 1;
+		// ack[1] = pacote[];
+		// write(client_socket,ack,sizeof(ack));
+	}
 	
 	close(client_socket); //Fecha a conexão socket
 

@@ -9,9 +9,23 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+
+
+int checksum(char pacote[],int size) {
+	int i,soma=0;
+
+	for(i=0;i<size;i++) {
+		soma += pacote[i];
+		soma %= 128;
+	}
+
+	return soma;
+
+}
+
 int main(int argc, char const *argv[]) {
 
-	int server_socket, binder, listener, porta, sock; 
+	int server_socket, binder, listener, porta; 
 	struct sockaddr_in serv_addr, cli_addr;
 	char nome_arquivo[30];
 	socklen_t clilen;
@@ -58,16 +72,18 @@ int main(int argc, char const *argv[]) {
 //					  FIM ABERTURA DE CONEXÃO
 //***************************************************************
 	FILE *file;
-	int nPacote = 0;
+	int nPacotes = 0,tam_buffer = 4096;
+	long long int tamanho_arquivo;
 	char str[4096];
-	int pacote[4099];
+	char pacote[4099];
+
 	ssize_t ler_bytes;
 	ssize_t escrever;
 
 //***************************************************************
 //					   REQUISIÇÃO DE ARQUIVO
 //***************************************************************
-	ler_bytes = read(sock, str, sizeof(str));
+	ler_bytes = recvfrom(server_socket, str, sizeof(str),0, (struct sockaddr *) &serv_addr, &clilen);
 	if(ler_bytes <= 0){
 		printf("Erro no read: %s\n", strerror(errno));
 		exit(1);
@@ -77,35 +93,47 @@ int main(int argc, char const *argv[]) {
 	file = fopen(str,"rb");
 	if(!file) {
 		char msg[25] = "Arquivo nao existe\n"; 
-		write(sock,msg,sizeof(msg));
+		sendto(server_socket,msg,sizeof(msg),0,(struct sockaddr *) &serv_addr, sizeof(serv_addr));
 		exit(1);
 	}
 	
 	
 	memset(pacote,0,sizeof pacote);
-	while(pacote[4098] == 0) { //LOOP DE ESCREVER E ENVIAR PACOTES
-		fread(pacote,sizeof(pacote)-3,1,file);
-		pacote[4096] = 1; //Campo de verificação 1 (checksum)
-		pacote[4097] = 1; //Campo de verificação 2 (nº de sequencia)
-		pacote[4098] = 0; //Campo de verificação 3 (temporizador)
+	fseek(file,0,SEEK_END);
+	tamanho_arquivo = ftell(file);
+	fseek(file,0,SEEK_SET);
 
+
+	while(pacote[4097] == 0) { //LOOP DE ESCREVER E ENVIAR PACOTES
+		fread(pacote,tam_buffer,1,file);
+			
+		pacote[4096] = checksum(pacote,tam_buffer); //Campo de verificação 1 (checksum)
+		// pacote[4098] = ; //Campo de verificação 3 (nº de sequencia)
+
+		
+		if(tam_buffer*nPacotes+tam_buffer < tamanho_arquivo) 
+			pacote[4097] = 0; //Campo de verificação 2 se eh o ultimo pacote
+
+
+		 else  //Se for ultimo pacote
+			pacote[4097] = 1; //Campo de verificação 2 se eh o ultimo pacote
+
+		
 		while(1) {
-			escrever = write(sock,pacote,sizeof(pacote));
-
+			escrever = sendto(server_socket,pacote,sizeof(pacote),0,(struct sockaddr *) &serv_addr, sizeof(serv_addr));
 			if(escrever <= 0) 
-				printf("Erro ao escrever, tentando novamente\n");
+				printf("Erro ao enviar, tentando novamente\n");
 			else {
-				nPacote++;
+				nPacotes++;
 				break;
 			}
 			
 		}
 
 	}
+	printf("Arquivo enviado com sucesso\n");
 
 	fclose(file);
-	
-	close(sock);
 	close(server_socket);
 
 	return 0;

@@ -9,12 +9,27 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+
+
+int checksum(char pacote[],int size) {
+	int i,soma=0;
+
+	for(i=0;i<size;i++) {
+		soma += pacote[i];
+		soma %= 128;
+	}
+
+	return soma;
+
+}
+
 int main(int argc, char const *argv[]) {
 
-	int server_socket, binder, listener, porta, sock; 
+	int server_socket, binder, listener, porta; 
 	struct sockaddr_in serv_addr, cli_addr;
 	char nome_arquivo[30];
 	socklen_t clilen;
+	ssize_t ler_bytes;
 
 
 //***************************************************************
@@ -51,61 +66,79 @@ int main(int argc, char const *argv[]) {
 		exit(1);
 	}
 	clilen = sizeof(cli_addr);
-	recvfrom(server_socket, &nome_arquivo, 20, 0,(struct sockaddr *) &cli_addr, &clilen);
+	ler_bytes = recvfrom(server_socket, &nome_arquivo, 20, 0,(struct sockaddr *) &cli_addr, &clilen);
 
-	printf(" %s\n",nome_arquivo);
 //***************************************************************
 //					  FIM ABERTURA DE CONEXÃO
 //***************************************************************
 	FILE *file;
-	int nPacote = 0;
+	int nPacotes = 0,tam_buffer = 4096;
+	long long int tamanho_arquivo;
 	char str[4096];
-	int pacote[4099];
-	ssize_t ler_bytes;
+	char pacote[4099];
+
 	ssize_t escrever;
+	ssize_t resposta;
 
 //***************************************************************
 //					   REQUISIÇÃO DE ARQUIVO
 //***************************************************************
-	ler_bytes = read(sock, str, sizeof(str));
 	if(ler_bytes <= 0){
 		printf("Erro no read: %s\n", strerror(errno));
 		exit(1);
 	}
 
-	//Agora, str tem o nome do arquivo
-	file = fopen(str,"rb");
+	file = fopen(nome_arquivo,"rb");
+	printf("%s\n",nome_arquivo);
+	printf("3");
 	if(!file) {
-		char msg[25] = "Arquivo nao existe\n"; 
-		write(sock,msg,sizeof(msg));
+		printf("2");
+		resposta = sendto(server_socket,"Arquivo nao existe",sizeof(msg),0,(struct sockaddr *) &cli_addr, sizeof(cli_addr));
+	} else {
+		resposta = sendto(server_socket,"Arquivo aberto com sucesso",sizeof(msg),0,(struct sockaddr *) &cli_addr, sizeof(cli_addr));
+	}
+	if(resposta <= 0) {
+		printf("Erro no read: %s\n", strerror(errno));
 		exit(1);
 	}
 	
 	
 	memset(pacote,0,sizeof pacote);
-	while(pacote[4098] == 0) { //LOOP DE ESCREVER E ENVIAR PACOTES
-		fread(pacote,sizeof(pacote)-3,1,file);
-		pacote[4096] = 1; //Campo de verificação 1 (checksum)
-		pacote[4097] = 1; //Campo de verificação 2 (nº de sequencia)
-		pacote[4098] = 0; //Campo de verificação 3 (temporizador)
+	fseek(file,0,SEEK_END);
+	tamanho_arquivo = ftell(file);
+	fseek(file,0,SEEK_SET);
 
+	printf("Tamanho do arquivo:%lld\n",tamanho_arquivo);
+	while(pacote[4097] == 0) { //LOOP DE ESCREVER E ENVIAR PACOTES
+		fread(pacote,tam_buffer,1,file);
+			
+		pacote[4096] = checksum(pacote,tam_buffer); //Campo de verificação 1 (checksum)
+		// pacote[4098] = ; //Campo de verificação 3 (nº de sequencia)
+
+		printf("Tamanho enviado: %d\n",tam_buffer*nPacotes);
+		if(tam_buffer*nPacotes+tam_buffer < tamanho_arquivo) 
+			pacote[4097] = 0; //Campo de verificação 2 se eh o ultimo pacote
+
+
+		 else  //Se for ultimo pacote
+			pacote[4097] = 1; //Campo de verificação 2 se eh o ultimo pacote
+
+		
 		while(1) {
-			escrever = write(sock,pacote,sizeof(pacote));
-
+			escrever = sendto(server_socket,pacote,sizeof(pacote),0,(struct sockaddr *) &cli_addr, sizeof(cli_addr));
 			if(escrever <= 0) 
-				printf("Erro ao escrever, tentando novamente\n");
+				printf("Erro ao enviar, tentando novamente\n");
 			else {
-				nPacote++;
+				nPacotes++;
 				break;
 			}
 			
 		}
 
 	}
+	printf("Arquivo enviado com sucesso\n");
 
 	fclose(file);
-	
-	close(sock);
 	close(server_socket);
 
 	return 0;

@@ -14,10 +14,9 @@ typedef enum { false, true } bool;
 int main(int argc, char const *argv[]) {
 	int porta, connector;
 	ssize_t ler_bytes, escrever_bytes;  
-	int client_socket;
+	int client_socket,binder;
 	struct sockaddr_in serv_addr;
 	char arqName[200];
-	char pacote[4096];
 
 
 	//Checa se na execução do programa vc colocou ./cliente <ip> <porta>
@@ -27,7 +26,7 @@ int main(int argc, char const *argv[]) {
 	}
 
 	//Cria uma conexão socket no client_socket
-	client_socket = socket(AF_INET, SOCK_STREAM, 0); 
+	client_socket = socket(AF_INET, SOCK_DGRAM, 0); 
 
 	if(client_socket <= 0){
 		printf("Erro no socket: %s\n", strerror(errno));
@@ -40,7 +39,7 @@ int main(int argc, char const *argv[]) {
 	//Armazena na variavel porta o 2º argumento colocado na execução do programa atoi string to integer
 	porta = atoi(argv[2]);
 
-	//Termo que guarda o tipo de conexão (tcp,udp)
+	//Termo que guarda o tipo de conexão (ipv4,ipv6...)
 	serv_addr.sin_family = AF_INET; 
 
 	//Guarda a porta a se checar
@@ -50,7 +49,7 @@ int main(int argc, char const *argv[]) {
 
     //Recebe o socket, a struct com as informações do server e o tamanho da struct com as informações do server
     //Essa função conecta cliente ao servidor e retorna negativo se a conexão falhou
-	connector = connect(client_socket, (const struct sockaddr*) &serv_addr, sizeof(serv_addr));
+	binder = bind(client_socket, (const struct sockaddr*) &serv_addr, sizeof(serv_addr));
     if(connector < 0){
 		fprintf(stderr, "%s", "Falha na conecao\n");
 		exit(1);
@@ -68,7 +67,7 @@ int main(int argc, char const *argv[]) {
 
 	fgets(arqName, sizeof(arqName), stdin); //lê mensagem do terminal e armazena em arqName
 	
-	escrever_bytes = write(client_socket, arqName, sizeof(arqName)); //envia pelo client_socket o arqName
+	escrever_bytes = sendto(client_socket, arqName, sizeof(arqName),0,(const struct sockaddr*) &serv_addr,sizeof(serv_addr)); //envia pelo client_socket o arqName
 	if(escrever_bytes == 0) {    //se vc n enviar nada
 		printf("Erro no write: %s\n",strerror(errno));
 		printf("Nada escrito.\n");
@@ -86,8 +85,9 @@ int main(int argc, char const *argv[]) {
 //***************************************************************
 //			           RECEBIMENTO DO ARQUIVO
 //***************************************************************
+	
 	file = fopen(arqName,"wb");
-
+	
 	ler = read(client_socket,pacote,sizeof(pacote));
 	ack[0] = 1;
 	// ack[1] = pacote[];

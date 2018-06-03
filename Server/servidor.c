@@ -13,6 +13,7 @@ int main(int argc, char const *argv[]) {
 
 	int server_socket, binder, listener, porta, sock; 
 	struct sockaddr_in serv_addr, cli_addr;
+	char nome_arquivo[30];
 	socklen_t clilen;
 
 
@@ -24,7 +25,7 @@ int main(int argc, char const *argv[]) {
 		exit(1);
 	}
 
-	server_socket = socket(AF_INET, SOCK_STREAM, 0); 
+	server_socket = socket(AF_INET, SOCK_DGRAM, 0); 
 
 	if(server_socket <= 0){
 		printf("Erro na abertura do socket: %s\n", strerror(errno));
@@ -49,23 +50,10 @@ int main(int argc, char const *argv[]) {
 		printf("Erro no Bind: %s\n", strerror(errno));
 		exit(1);
 	}
-
-	listener = listen(server_socket, 20);
-
-	if(listener < 0){
-		printf("Erro no Listen: %s\n", strerror(errno));
-		exit(1);
-	}
-
 	clilen = sizeof(cli_addr);
+	recvfrom(server_socket, &nome_arquivo, 20, 0,(struct sockaddr *) &cli_addr, &clilen);
 
-	sock = accept(server_socket, (struct sockaddr*) &cli_addr, &clilen);
-
-	if(sock <= 0)
-		printf("Erro no accept: %s\n", strerror(errno));
-	else
-		printf("Conexao recebida de %s\n", inet_ntoa(cli_addr.sin_addr));
-
+	printf(" %s\n",nome_arquivo);
 //***************************************************************
 //					  FIM ABERTURA DE CONEXÃO
 //***************************************************************
@@ -96,7 +84,7 @@ int main(int argc, char const *argv[]) {
 	
 	memset(pacote,0,sizeof pacote);
 	while(pacote[4098] == 0) { //LOOP DE ESCREVER E ENVIAR PACOTES
-		fread(pacote,4095*32,1,file);
+		fread(pacote,sizeof(pacote)-3,1,file);
 		pacote[4096] = 1; //Campo de verificação 1 (checksum)
 		pacote[4097] = 1; //Campo de verificação 2 (nº de sequencia)
 		pacote[4098] = 0; //Campo de verificação 3 (temporizador)

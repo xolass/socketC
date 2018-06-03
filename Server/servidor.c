@@ -91,16 +91,16 @@ int main(int argc, char const *argv[]) {
 	file = fopen(nome_arquivo,"rb");
 	printf("%s\n",nome_arquivo);
 	printf("3");
-	// if(!file) {
-	// 	printf("2");
-	// 	char msg[25] = "Arquivo nao existe\n"; 
-	// 	resposta = sendto(server_socket,msg,sizeof(msg),0,(struct sockaddr *) &cli_addr, sizeof(cli_addr));
-	
-	// 	if(resposta <= 0) {
-	// 		printf("Erro no read: %s\n", strerror(errno));
-	// 		exit(1);
-	// 	}
-	// }
+	if(!file) {
+		printf("2");
+		resposta = sendto(server_socket,"Arquivo nao existe",sizeof(msg),0,(struct sockaddr *) &cli_addr, sizeof(cli_addr));
+	} else {
+		resposta = sendto(server_socket,"Arquivo aberto com sucesso",sizeof(msg),0,(struct sockaddr *) &cli_addr, sizeof(cli_addr));
+	}
+	if(resposta <= 0) {
+		printf("Erro no read: %s\n", strerror(errno));
+		exit(1);
+	}
 	
 	
 	memset(pacote,0,sizeof pacote);

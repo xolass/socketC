@@ -65,15 +65,22 @@ int main(int argc, char const *argv[]) {
 
 	printf("Qual arquivo pedir: ");
 
-	fgets(arqName, sizeof(arqName), stdin); //lê mensagem do terminal e armazena em arqName
+	// fgets(arqName, sizeof(arqName), stdin); //lê mensagem do terminal e armazena em arqName
 	
-	escrever_bytes = sendto(client_socket, arqName, sizeof(arqName),0,(const struct sockaddr*) &serv_addr,sizeof(serv_addr)); //envia pelo client_socket o arqName
+	escrever_bytes = sendto(client_socket, "clientUp.c.zip", sizeof(arqName),0,(const struct sockaddr*) &serv_addr,sizeof(serv_addr)); //envia pelo client_socket o arqName
+	
 	if(escrever_bytes == 0) {    //se vc n enviar nada
 		printf("Erro no write: %s\n",strerror(errno));
 		printf("Nada escrito.\n");
 		exit(1);
 	}
-
+	int servlen = sizeof(serv_addr);
+	escrever_bytes = recvfrom(client_socket,&arqName,sizeof(arqName),0,(struct sockaddr*) &serv_addr,&servlen);
+	
+	if(escrever_bytes <= 0) {    //se vc n enviar nada
+		printf("%s\n",strerror(errno));
+		exit(1);
+	}
 //***************************************************************
 //			         FIM REQUISIÇÃO DE ARQUIVO
 //***************************************************************
@@ -89,11 +96,12 @@ int main(int argc, char const *argv[]) {
 	file = fopen(arqName,"wb");
 	
 	while(1) {
-		int servlen = sizeof(serv_addr);
+
+		printf("%zu\n",ler);
 		ler = recvfrom(client_socket,pacote,sizeof(pacote),0,(struct sockaddr*) &serv_addr,&servlen);
-		if(ler<=0) {
-			break;
-		}
+		// if(pacote[4097] == 1) {
+			// break;
+		// }
 
 		// ack[0] = 1;
 		// ack[1] = pacote[];

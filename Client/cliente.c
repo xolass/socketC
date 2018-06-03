@@ -16,7 +16,7 @@ int main(int argc, char const *argv[]) {
 	ssize_t ler_bytes, escrever_bytes;  
 	int client_socket,binder;
 	struct sockaddr_in serv_addr;
-	char arqName[200];
+	char arqName[200],resposta[30];
 
 
 	//Checa se na execução do programa vc colocou ./cliente <ip> <porta>
@@ -66,8 +66,8 @@ int main(int argc, char const *argv[]) {
 	printf("Qual arquivo pedir: ");
 
 	// fgets(arqName, sizeof(arqName), stdin); //lê mensagem do terminal e armazena em arqName
-	
-	escrever_bytes = sendto(client_socket, "clientUp.c.zip", sizeof(arqName),0,(const struct sockaddr*) &serv_addr,sizeof(serv_addr)); //envia pelo client_socket o arqName
+	strcpy(arqName,"muffin.mp4");
+	escrever_bytes = sendto(client_socket, arqName, sizeof(arqName),0,(const struct sockaddr*) &serv_addr,sizeof(serv_addr)); //envia pelo client_socket o arqName
 	
 	if(escrever_bytes == 0) {    //se vc n enviar nada
 		printf("Erro no write: %s\n",strerror(errno));
@@ -75,7 +75,7 @@ int main(int argc, char const *argv[]) {
 		exit(1);
 	}
 	int servlen = sizeof(serv_addr);
-	escrever_bytes = recvfrom(client_socket,&arqName,sizeof(arqName),0,(struct sockaddr*) &serv_addr,&servlen);
+	escrever_bytes = recvfrom(client_socket,&resposta,sizeof(arqName),0,(struct sockaddr*) &serv_addr,&servlen);
 	
 	if(escrever_bytes <= 0) {    //se vc n enviar nada
 		printf("%s\n",strerror(errno));
@@ -97,17 +97,20 @@ int main(int argc, char const *argv[]) {
 	
 	while(1) {
 
-		printf("%zu\n",ler);
 		ler = recvfrom(client_socket,pacote,sizeof(pacote),0,(struct sockaddr*) &serv_addr,&servlen);
-		// if(pacote[4097] == 1) {
-			// break;
-		// }
+		fwrite(pacote,1,4096,file);
+		printf("%zu\n",ler);
+		if(pacote[4097] == 1) {
+			break;
+		}
 
 		// ack[0] = 1;
 		// ack[1] = pacote[];
 		// write(client_socket,ack,sizeof(ack));
 	}
+	int i;
 	
+	fclose(file);
 	close(client_socket); //Fecha a conexão socket
 
 	return 0;

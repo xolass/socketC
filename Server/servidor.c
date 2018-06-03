@@ -93,9 +93,9 @@ int main(int argc, char const *argv[]) {
 	printf("3");
 	if(!file) {
 		printf("2");
-		resposta = sendto(server_socket,"Arquivo nao existe",sizeof(msg),0,(struct sockaddr *) &cli_addr, sizeof(cli_addr));
+		resposta = sendto(server_socket,"Arquivo nao existe",18,0,(struct sockaddr *) &cli_addr, sizeof(cli_addr));
 	} else {
-		resposta = sendto(server_socket,"Arquivo aberto com sucesso",sizeof(msg),0,(struct sockaddr *) &cli_addr, sizeof(cli_addr));
+		resposta = sendto(server_socket,"Arquivo aberto com sucesso",26,0,(struct sockaddr *) &cli_addr, sizeof(cli_addr));
 	}
 	if(resposta <= 0) {
 		printf("Erro no read: %s\n", strerror(errno));
@@ -136,7 +136,10 @@ int main(int argc, char const *argv[]) {
 		}
 
 	}
+	int i;
+	
 	printf("Arquivo enviado com sucesso\n");
+	printf("%d\n",nPacotes);
 
 	fclose(file);
 	close(server_socket);
